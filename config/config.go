@@ -11,6 +11,7 @@ type ConfData struct {
 	MessageText string `yaml:"message_text"`
 	WebHookUri  string `yaml:"web_hook_uri"`
 	ItunesAppId string `yaml:"itunes_app_id"`
+	DBPath      string `yaml:"db_path"`
 }
 
 func LoadConfig() *ConfData {
