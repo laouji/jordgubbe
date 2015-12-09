@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -21,7 +22,7 @@ type Entry struct {
 	Updated string   `xml:"updated"`
 	Title   string   `xml:"title"`
 	Content []string `xml:"content"`
-	Rating  int      `xml:"im:rating"`
+	Rating  int      `xml:"rating"`
 	Author  struct {
 		Name string `xml:"name"`
 		Uri  string `xml:"uri"`
@@ -122,7 +123,7 @@ func ParseAttachments(entries []Entry) []SlackAttachment {
 
 	for _, entry := range entries {
 		fields := []AttachmentField{}
-		fields = append(fields, AttachmentField{Title: "Reviewer", Value: entry.Author.Name, Short: true})
+		fields = append(fields, AttachmentField{Title: "Rating", Value: strings.Repeat(":star:", entry.Rating), Short: true})
 		fields = append(fields, AttachmentField{Title: "Updated", Value: entry.Updated, Short: true})
 
 		attachments = append(attachments, SlackAttachment{
