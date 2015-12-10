@@ -2,32 +2,15 @@ package main
 
 import (
 	"./config"
-	"./sqlite3"
+	"./feed"
+	"./model"
 	"bytes"
 	"encoding/json"
-	"encoding/xml"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 )
-
-type ReviewData struct {
-	Entries []Entry `xml:"entry"`
-}
-
-type Entry struct {
-	Id      string   `xml:"id"`
-	Updated string   `xml:"updated"`
-	Title   string   `xml:"title"`
-	Content []string `xml:"content"`
-	Rating  int      `xml:"rating"`
-	Author  struct {
-		Name string `xml:"name"`
-		Uri  string `xml:"uri"`
-	} `xml:"author"`
-}
 
 type SlackPayload struct {
 	Text        string            `json:"text"`
@@ -37,52 +20,51 @@ type SlackPayload struct {
 }
 
 type SlackAttachment struct {
-	Title     string            `json:"title"`
-	TitleLink string            `json:"title_link"`
-	Text      string            `json:"text"`
-	Fallback  string            `json:"fallback"`
-	Fields    []AttachmentField `json:"fields"`
+	Title     string                 `json:"title"`
+	TitleLink string                 `json:"title_link"`
+	Text      string                 `json:"text"`
+	Fallback  string                 `json:"fallback"`
+	Fields    []SlackAttachmentField `json:"fields"`
 }
 
-type AttachmentField struct {
+type SlackAttachmentField struct {
 	Title string `json:"title"`
 	Value string `json:"value"`
 	Short bool   `json:"short"`
 }
 
-func main() {
-	conf := config.LoadConfig()
-	rawXml := HttpGet(BuildFeedUri(conf.ItunesAppId))
+var (
+	conf *config.ConfData
+)
 
-	reviewData := ReviewData{}
-	err := xml.Unmarshal(rawXml, &reviewData)
+func main() {
+	conf = config.LoadConfig()
+
+	itunesFeed := feed.NewFeed(conf.ItunesAppId)
+	rawXml := HttpGet(itunesFeed.Uri)
+
+	entries, err := itunesFeed.Entries(rawXml)
 	if err != nil {
 		panic(err)
 	}
 
-	unseenEntries := FilterUnseenEntries(reviewData)
-	if len(unseenEntries) <= 0 {
+	unseenReviews := SaveUnseen(entries)
+	if len(unseenReviews) <= 0 {
 		//no new content
 		return
 	}
 
-	attachments := ParseAttachments(unseenEntries)
+	attachments := GenerateAttachments(unseenReviews)
 	payload := PreparePayload(attachments)
 	HttpPostJson(conf.WebHookUri, payload)
 }
 
-func BuildFeedUri(appId string) string {
-	return "http://itunes.apple.com/jp/rss/customerreviews/id=" + appId + "/sortBy=mostRecent/xml"
-}
+func SaveUnseen(entries []feed.Entry) []*model.Review {
+	reviews := []*model.Review{}
 
-func FilterUnseenEntries(reviewData ReviewData) []Entry {
-	entries := []Entry{}
+	lastSeenReviewId := model.LastSeenReviewId()
 
-	sqlite3.Init()
-	dbh := sqlite3.GetDBH()
-	lastSeenReviewId := dbh.LatestId("review")
-
-	for i, entry := range reviewData.Entries {
+	for i, entry := range entries {
 		// first entry is the summary of the app so skip it
 		if i == 0 {
 			continue
@@ -90,47 +72,37 @@ func FilterUnseenEntries(reviewData ReviewData) []Entry {
 
 		entryId, _ := strconv.Atoi(entry.Id)
 		if entryId <= lastSeenReviewId {
-			continue
+			break
 		}
 
-		sth, err := dbh.Prepare(`
-INSERT INTO review(id, title, content, rating, author_name, author_uri, updated, acquired) 
-values(?,?,?,?,?,?,?,?)
-`,
-		)
+		review := model.NewReview(&entry)
+		err := review.Save()
 		if err != nil {
 			panic(err)
 		}
-
-		updatedTime, _ := time.Parse("2006-01-02T15:04:05-07:00", entry.Updated)
-		updated := updatedTime.Local().Format("2006-01-02 15:04:05")
-		now := time.Now().Format("2006-01-02 15:04:05")
-
-		_, err = sth.Exec(entry.Id, entry.Title, entry.Content[0], entry.Rating, entry.Author.Name, entry.Author.Uri, updated, now)
-		if err != nil {
-			panic(err)
-		}
-
-		entry.Updated = updated
-		entries = append(entries, entry)
+		reviews = append(reviews, review)
 	}
 
-	return entries
+	return reviews
 }
 
-func ParseAttachments(entries []Entry) []SlackAttachment {
+func GenerateAttachments(reviews []*model.Review) []SlackAttachment {
 	attachments := []SlackAttachment{}
 
-	for _, entry := range entries {
-		fields := []AttachmentField{}
-		fields = append(fields, AttachmentField{Title: "Rating", Value: strings.Repeat(":star:", entry.Rating), Short: true})
-		fields = append(fields, AttachmentField{Title: "Updated", Value: entry.Updated, Short: true})
+	for i, review := range reviews {
+		if i > conf.MaxAttachmentCount {
+			break
+		}
+
+		fields := []SlackAttachmentField{}
+		fields = append(fields, SlackAttachmentField{Title: "Rating", Value: strings.Repeat(":star:", review.Rating), Short: true})
+		fields = append(fields, SlackAttachmentField{Title: "Updated", Value: review.Updated.Format("2006-01-02 15:04:05"), Short: true})
 
 		attachments = append(attachments, SlackAttachment{
-			Title:     entry.Title,
-			TitleLink: entry.Author.Uri,
-			Text:      entry.Content[0],
-			Fallback:  entry.Title + " " + entry.Author.Uri,
+			Title:     review.Title,
+			TitleLink: review.AuthorUri,
+			Text:      review.Content,
+			Fallback:  review.Title + " " + review.AuthorUri,
 			Fields:    fields,
 		})
 	}
@@ -139,8 +111,6 @@ func ParseAttachments(entries []Entry) []SlackAttachment {
 }
 
 func PreparePayload(attachments []SlackAttachment) []byte {
-	conf := config.LoadConfig()
-
 	slackPayload := SlackPayload{
 		UserName:    conf.BotName,
 		IconEmoji:   conf.IconEmoji,

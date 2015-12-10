@@ -4,3 +4,4 @@ message_text: "Here are the latest reviews for your app:"
 web_hook_uri: "https://hooks.slack.com/services/<REST OF THE WEBHOOK URL>"
 itunes_app_id: "<YOUR ITUNES STORE APP ID>"
 db_path: "./jordgubbe.db"
+max_attachment_count: 5

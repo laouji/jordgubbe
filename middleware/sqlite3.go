@@ -1,4 +1,4 @@
-package sqlite3
+package middleware
 
 import (
 	"../config"
@@ -17,19 +17,22 @@ type DBH struct {
 func Init() {
 	conf := config.LoadConfig()
 
-	driver, err := sql.Open("sqlite3", conf.DBPath)
+	handle, err := sql.Open("sqlite3", conf.DBPath)
 	if err != nil {
 		panic(err)
 	}
 
-	dbh = &DBH{driver}
+	dbh = &DBH{handle}
 }
 
 func GetDBH() *DBH {
+	if dbh == nil {
+		Init()
+	}
 	return dbh
 }
 
-func (dbh *DBH) LatestId(tableName string) int {
+func (dbh *DBH) LastInsertId(tableName string) int {
 	row := dbh.QueryRow(`SELECT id FROM ` + tableName + ` ORDER BY id DESC LIMIT 1`)
 
 	var id int

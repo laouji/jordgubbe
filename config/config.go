@@ -6,12 +6,13 @@ import (
 )
 
 type ConfData struct {
-	BotName     string `yaml:"bot_name"`
-	IconEmoji   string `yaml:"icon_emoji"`
-	MessageText string `yaml:"message_text"`
-	WebHookUri  string `yaml:"web_hook_uri"`
-	ItunesAppId string `yaml:"itunes_app_id"`
-	DBPath      string `yaml:"db_path"`
+	BotName            string `yaml:"bot_name"`
+	IconEmoji          string `yaml:"icon_emoji"`
+	MessageText        string `yaml:"message_text"`
+	WebHookUri         string `yaml:"web_hook_uri"`
+	ItunesAppId        string `yaml:"itunes_app_id"`
+	DBPath             string `yaml:"db_path"`
+	MaxAttachmentCount int    `yaml:"max_attachment_count"`
 }
 
 func LoadConfig() *ConfData {
