@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	"../config"
 	"database/sql"
+	"github.com/laouji/jordgubbe/config"
 	_ "github.com/mattn/go-sqlite3"
 )
 

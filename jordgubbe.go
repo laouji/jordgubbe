@@ -1,11 +1,11 @@
 package main
 
 import (
-	"./config"
-	"./feed"
-	"./model"
 	"bytes"
 	"encoding/json"
+	"github.com/laouji/jordgubbe/config"
+	"github.com/laouji/jordgubbe/feed"
+	"github.com/laouji/jordgubbe/model"
 	"io/ioutil"
 	"net/http"
 	"strconv"

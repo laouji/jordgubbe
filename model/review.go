@@ -1,8 +1,8 @@
 package model
 
 import (
-	"../feed"
-	"../middleware"
+	"github.com/laouji/jordgubbe/feed"
+	"github.com/laouji/jordgubbe/middleware"
 	"github.com/russross/meddler"
 	"strconv"
 	"time"
@@ -17,6 +17,10 @@ type Review struct {
 	AuthorUri  string    `meddler:"author_uri"`
 	Updated    time.Time `meddler:"updated,localtime"`
 	Acquired   time.Time `meddler:"acquired,localtime"`
+}
+
+func init() {
+	meddler.Default = meddler.SQLite
 }
 
 func NewReview(entry *feed.Entry) *Review {
@@ -42,7 +46,6 @@ func LastSeenReviewId() int {
 
 func (rowData *Review) Save() error {
 	dbh := middleware.GetDBH()
-	meddler.Default = meddler.SQLite
 	err := meddler.Insert(dbh, "review", rowData)
 
 	return err
