@@ -6,6 +6,7 @@ import (
 	"github.com/laouji/jordgubbe/config"
 	"github.com/laouji/jordgubbe/feed"
 	"github.com/laouji/jordgubbe/model"
+	"log"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -45,7 +46,7 @@ func main() {
 
 	entries, err := itunesFeed.Entries(rawXml)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	unseenReviews := SaveUnseen(entries)
@@ -78,7 +79,7 @@ func SaveUnseen(entries []feed.Entry) []*model.Review {
 		review := model.NewReview(&entry)
 		err := review.Save()
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		reviews = append(reviews, review)
 	}
@@ -125,7 +126,7 @@ func PreparePayload(attachments []SlackAttachment) []byte {
 func HttpGet(uri string) []byte {
 	res, err := http.Get(uri)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer res.Body.Close()
 
@@ -140,7 +141,7 @@ func HttpPostJson(url string, jsonPayload []byte) {
 	client := http.DefaultClient
 	res, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer res.Body.Close()
 }

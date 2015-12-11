@@ -3,6 +3,7 @@ package config
 import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"log"
 )
 
 type ConfData struct {
@@ -22,17 +23,17 @@ func LoadConfig() *ConfData {
 	if err != nil {
 		buf, err := ioutil.ReadFile("config/config.yml")
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 
 		if err := yaml.Unmarshal(buf, &d); err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		return &d
 	}
 
 	if err := yaml.Unmarshal(buf, &d); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	return &d
