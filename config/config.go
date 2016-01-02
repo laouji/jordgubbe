@@ -12,6 +12,9 @@ type ConfData struct {
 	WebHookUri         string `yaml:"web_hook_uri"`
 	ItunesAppId        string `yaml:"itunes_app_id"`
 	DBPath             string `yaml:"db_path"`
+	TmpDir             string `yaml:"tmp_dir"`
+	GCSBucketId        string `yaml:"gcs_bucket_id"`
+	AndroidPackageName string `yaml:"android_package_name"`
 	MaxAttachmentCount int    `yaml:"max_attachment_count"`
 }
 
