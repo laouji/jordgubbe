@@ -1,4 +1,4 @@
-CREATE TABLE review (
+CREATE TABLE review_ios (
   id INT(11) NOT NULL,
   title VARCHAR(255) NULL,
   content TEXT,
@@ -9,5 +9,5 @@ CREATE TABLE review (
   acquired DATETIME NOT NULL,
   PRIMARY KEY (id)
 );
-CREATE INDEX updated_idx on review(updated);
-CREATE INDEX rating_idx on review(rating);
+CREATE INDEX updated_idx on review_ios(updated);
+CREATE INDEX rating_idx on review_ios(rating);

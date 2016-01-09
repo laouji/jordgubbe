@@ -3,11 +3,15 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
+	"fmt"
 	"github.com/laouji/jordgubbe/config"
 	"github.com/laouji/jordgubbe/feed"
 	"github.com/laouji/jordgubbe/model"
-	"io/ioutil"
+	"github.com/laouji/jordgubbe/platform"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -38,14 +42,27 @@ var (
 )
 
 func main() {
+	flag.Parse()
 	conf = config.LoadConfig()
 
-	itunesFeed := feed.NewFeed(conf.ItunesAppId)
-	rawXml := HttpGet(itunesFeed.Uri)
+	var retriever interface {
+		RetrieveEntries() ([]feed.Entry, error)
+	}
 
-	entries, err := itunesFeed.Entries(rawXml)
+	switch conf.PlatformName {
+	case "android":
+		fmt.Println(conf.PlatformName)
+		os.Exit(1)
+		retriever = platform.NewAndroidReviewRetriever(conf)
+	case "ios":
+		retriever = platform.NewIosReviewRetriever(conf)
+	default:
+		log.Fatal("unsupported platform: " + conf.PlatformName)
+	}
+
+	entries, err := retriever.RetrieveEntries()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	unseenReviews := SaveUnseen(entries)
@@ -62,7 +79,7 @@ func main() {
 func SaveUnseen(entries []feed.Entry) []*model.Review {
 	reviews := []*model.Review{}
 
-	lastSeenReviewId := model.LastSeenReviewId()
+	lastSeenReviewId := model.LastSeenReviewId(conf.PlatformName)
 
 	for i, entry := range entries {
 		// first entry is the summary of the app so skip it
@@ -76,9 +93,9 @@ func SaveUnseen(entries []feed.Entry) []*model.Review {
 		}
 
 		review := model.NewReview(&entry)
-		err := review.Save()
+		err := review.Save(conf.PlatformName)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		reviews = append(reviews, review)
 	}
@@ -122,17 +139,6 @@ func PreparePayload(attachments []SlackAttachment) []byte {
 	return payload
 }
 
-func HttpGet(uri string) []byte {
-	res, err := http.Get(uri)
-	if err != nil {
-		panic(err)
-	}
-	defer res.Body.Close()
-
-	body, _ := ioutil.ReadAll(res.Body)
-	return body
-}
-
 func HttpPostJson(url string, jsonPayload []byte) {
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer([]byte(jsonPayload)))
 	req.Header.Set("Content-Type", "application/json")
@@ -140,7 +146,7 @@ func HttpPostJson(url string, jsonPayload []byte) {
 	client := http.DefaultClient
 	res, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer res.Body.Close()
 }

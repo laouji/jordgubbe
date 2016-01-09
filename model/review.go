@@ -39,14 +39,14 @@ func NewReview(entry *feed.Entry) *Review {
 	}
 }
 
-func LastSeenReviewId() int {
+func LastSeenReviewId(platformKey string) int {
 	dbh := middleware.GetDBH()
-	return dbh.LastInsertId("review")
+	return dbh.LastInsertId("review_" + platformKey)
 }
 
-func (rowData *Review) Save() error {
+func (rowData *Review) Save(platformKey string) error {
 	dbh := middleware.GetDBH()
-	err := meddler.Insert(dbh, "review", rowData)
+	err := meddler.Insert(dbh, "review_"+platformKey, rowData)
 
 	return err
 }
