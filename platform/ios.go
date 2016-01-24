@@ -37,10 +37,6 @@ func (r *IosReviewRetriever) Retrieve() []*model.Review {
 		}
 
 		review := factory.NewIosReview(&entry)
-		err = review.Save()
-		if err != nil {
-			log.Fatal(err)
-		}
 		reviews = append(reviews, review)
 	}
 

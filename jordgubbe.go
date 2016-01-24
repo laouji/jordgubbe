@@ -9,7 +9,6 @@ import (
 	"github.com/laouji/jordgubbe/slack"
 	"log"
 	"net/http"
-	"sort"
 )
 
 var (
@@ -28,7 +27,7 @@ func main() {
 	case "android":
 		retriever = platform.NewAndroidReviewRetriever(conf)
 	case "ios":
-		//retriever = platform.NewIosReviewRetriever(conf)
+		retriever = platform.NewIosReviewRetriever(conf)
 	default:
 		log.Fatal("unsupported platform: " + conf.PlatformName)
 	}
@@ -53,12 +52,9 @@ func FilterAndSaveReviews(candidates []*model.Review) []*model.Review {
 		return newReviews
 	}
 
-	var sortedCandidates model.ReviewSlice = candidates
-	sort.Sort(sort.Reverse(sortedCandidates[:]))
+	lastSeenId := model.LastSeenReviewId(candidates[0].DeviceType)
 
-	lastSeenId := model.LastSeenReviewId(sortedCandidates[0].DeviceType)
-
-	for _, candidate := range sortedCandidates {
+	for _, candidate := range candidates {
 		if candidate.ID <= lastSeenId {
 			break
 		}

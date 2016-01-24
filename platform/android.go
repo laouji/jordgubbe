@@ -14,6 +14,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -68,25 +69,30 @@ func (r *AndroidReviewRetriever) Retrieve() []*model.Review {
 		reviews = append(reviews, review)
 	}
 
+	var sortedReviews model.ReviewSlice = reviews
+	sort.Sort(sort.Reverse(sortedReviews[:]))
+
 	r.Cleanup()
-	return reviews
+	return sortedReviews
 }
 
 func (r *AndroidReviewRetriever) Download() {
-	dateStr := time.Now().Format("200601")
-	fileName := fmt.Sprintf("reviews_%s_%s.csv", r.Conf.AndroidPackageName, dateStr)
-	gsString := fmt.Sprintf("gs://%s/reviews/%s", r.Conf.GCSBucketId, fileName)
+	gsString := fmt.Sprintf("gs://%s/reviews/%s", r.Conf.GCSBucketId, r.CsvFileName())
 	gsutil := exec.Command("gsutil", "cp", gsString, r.Conf.TmpDir+"/")
+
 	err := gsutil.Run()
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func (r *AndroidReviewRetriever) CsvFilePath() string {
+func (r *AndroidReviewRetriever) CsvFileName() string {
 	dateStr := time.Now().Format("200601")
-	fileName := fmt.Sprintf("reviews_%s_%s.csv", r.Conf.AndroidPackageName, dateStr)
-	return r.Conf.TmpDir + "/" + fileName
+	return fmt.Sprintf("reviews_%s_%s.csv", r.Conf.AndroidPackageName, dateStr)
+}
+
+func (r *AndroidReviewRetriever) CsvFilePath() string {
+	return r.Conf.TmpDir + "/" + r.CsvFileName()
 }
 
 func (r *AndroidReviewRetriever) Cleanup() {
