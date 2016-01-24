@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"github.com/laouji/jordgubbe/config"
 	_ "github.com/mattn/go-sqlite3"
+	"log"
 )
 
 var (
@@ -19,7 +20,7 @@ func Init() {
 
 	handle, err := sql.Open("sqlite3", conf.DBPath)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	dbh = &DBH{handle}
