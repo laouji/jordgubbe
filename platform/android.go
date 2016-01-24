@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"os/exec"
 	"strconv"
 	"time"
@@ -29,12 +30,10 @@ func NewAndroidReviewRetriever(conf *config.ConfData) *AndroidReviewRetriever {
 
 func (r *AndroidReviewRetriever) Retrieve() []*model.Review {
 	r.CheckGsutil()
-
-	dateStr := time.Now().Format("200601")
-	fileName := fmt.Sprintf("reviews_%s_%s.csv", r.Conf.AndroidPackageName, dateStr)
+	r.Download()
 
 	var reviews []*model.Review
-	csvParser := r.BuildCSVParser(fileName)
+	csvParser := r.BuildCSVParser()
 	for {
 		rawData, err := csvParser.Read()
 		if err == io.EOF {
@@ -69,6 +68,7 @@ func (r *AndroidReviewRetriever) Retrieve() []*model.Review {
 		reviews = append(reviews, review)
 	}
 
+	r.Cleanup()
 	return reviews
 }
 
@@ -83,8 +83,25 @@ func (r *AndroidReviewRetriever) Download() {
 	}
 }
 
-func (r *AndroidReviewRetriever) BuildCSVParser(fileName string) *csv.Reader {
-	rawBytes, err := ioutil.ReadFile(r.Conf.TmpDir + "/" + fileName)
+func (r *AndroidReviewRetriever) CsvFilePath() string {
+	dateStr := time.Now().Format("200601")
+	fileName := fmt.Sprintf("reviews_%s_%s.csv", r.Conf.AndroidPackageName, dateStr)
+	return r.Conf.TmpDir + "/" + fileName
+}
+
+func (r *AndroidReviewRetriever) Cleanup() {
+	file, err := os.Open(r.CsvFilePath())
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	defer file.Close()
+
+	os.Remove(file.Name())
+}
+
+func (r *AndroidReviewRetriever) BuildCSVParser() *csv.Reader {
+	rawBytes, err := ioutil.ReadFile(r.CsvFilePath())
 	if err != nil {
 		log.Fatal(err)
 	}

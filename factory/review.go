@@ -1,7 +1,6 @@
 package factory
 
 import (
-	"fmt"
 	"github.com/laouji/jordgubbe/model"
 	"strconv"
 	"time"
