@@ -2,22 +2,11 @@ package feed
 
 import (
 	"encoding/xml"
+	"github.com/laouji/jordgubbe/model"
 )
 
 type XMLData struct {
-	Entries []Entry `xml:"entry"`
-}
-
-type Entry struct {
-	Id      string   `xml:"id"`
-	Updated string   `xml:"updated"`
-	Title   string   `xml:"title"`
-	Content []string `xml:"content"`
-	Rating  int      `xml:"rating"`
-	Author  struct {
-		Name string `xml:"name"`
-		Uri  string `xml:"uri"`
-	} `xml:"author"`
+	Entries []model.FeedEntry `xml:"entry"`
 }
 
 type Feed struct {
@@ -34,7 +23,7 @@ func NewFeed(appId string) *Feed {
 	}
 }
 
-func (feed *Feed) Entries(rawXml []byte) ([]Entry, error) {
+func (feed *Feed) Entries(rawXml []byte) ([]model.FeedEntry, error) {
 	xmlData := XMLData{}
 	err := xml.Unmarshal(rawXml, &xmlData)
 	if err != nil {

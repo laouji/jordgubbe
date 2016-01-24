@@ -31,18 +31,3 @@ func GetDBH() *DBH {
 	}
 	return dbh
 }
-
-func (dbh *DBH) LastInsertId(tableName string) int {
-	row := dbh.QueryRow(`SELECT id FROM ` + tableName + ` ORDER BY id DESC LIMIT 1`)
-
-	var id int
-	err := row.Scan(&id)
-	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
-			return 0
-		}
-		panic(err)
-	}
-
-	return id
-}
