@@ -54,7 +54,7 @@ func (r *AndroidReviewRetriever) Retrieve() []*model.Review {
 			//column name is not a valid integer so will be skipped
 			continue
 		}
-		rating, _ := strconv.Atoi(rawData[8])
+		rating, _ := strconv.Atoi(rawData[9])
 		csvRow := model.CsvRow{
 			ID:         id,
 			Title:      rawData[10],
