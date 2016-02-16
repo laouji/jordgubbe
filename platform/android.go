@@ -49,7 +49,7 @@ func (r *AndroidReviewRetriever) Retrieve() []*model.Review {
 			break
 		}
 
-		id, err := strconv.ParseInt(rawData[5], 10, 64)
+		id, err := strconv.ParseInt(rawData[6], 10, 64)
 		if err != nil {
 			//column name is not a valid integer so will be skipped
 			continue
@@ -57,13 +57,13 @@ func (r *AndroidReviewRetriever) Retrieve() []*model.Review {
 		rating, _ := strconv.Atoi(rawData[8])
 		csvRow := model.CsvRow{
 			ID:         id,
-			Title:      rawData[9],
-			Content:    rawData[10],
+			Title:      rawData[10],
+			Content:    rawData[11],
 			Rating:     rating,
-			DeviceName: rawData[3],
-			AuthorUri:  rawData[14],
-			Created:    rawData[4],
-			Updated:    rawData[6],
+			DeviceName: rawData[4],
+			AuthorUri:  rawData[15],
+			Created:    rawData[5],
+			Updated:    rawData[7],
 		}
 		review := factory.NewAndroidReview(&csvRow)
 		reviews = append(reviews, review)
