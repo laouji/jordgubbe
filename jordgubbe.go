@@ -2,136 +2,71 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
+	"flag"
 	"github.com/laouji/jordgubbe/config"
-	"github.com/laouji/jordgubbe/feed"
 	"github.com/laouji/jordgubbe/model"
+	"github.com/laouji/jordgubbe/platform"
+	"github.com/laouji/jordgubbe/slack"
 	"log"
-	"io/ioutil"
 	"net/http"
-	"strconv"
-	"strings"
 )
-
-type SlackPayload struct {
-	Text        string            `json:"text"`
-	UserName    string            `json:"username"`
-	IconEmoji   string            `json:"icon_emoji"`
-	Attachments []SlackAttachment `json:"attachments"`
-}
-
-type SlackAttachment struct {
-	Title     string                 `json:"title"`
-	TitleLink string                 `json:"title_link"`
-	Text      string                 `json:"text"`
-	Fallback  string                 `json:"fallback"`
-	Fields    []SlackAttachmentField `json:"fields"`
-}
-
-type SlackAttachmentField struct {
-	Title string `json:"title"`
-	Value string `json:"value"`
-	Short bool   `json:"short"`
-}
 
 var (
 	conf *config.ConfData
 )
 
 func main() {
+	flag.Parse()
 	conf = config.LoadConfig()
 
-	itunesFeed := feed.NewFeed(conf.ItunesAppId)
-	rawXml := HttpGet(itunesFeed.Uri)
-
-	entries, err := itunesFeed.Entries(rawXml)
-	if err != nil {
-		log.Fatal(err)
+	var retriever interface {
+		Retrieve() []*model.Review
 	}
 
-	unseenReviews := SaveUnseen(entries)
-	if len(unseenReviews) <= 0 {
+	switch conf.PlatformName {
+	case "android":
+		retriever = platform.NewAndroidReviewRetriever(conf)
+	case "ios":
+		retriever = platform.NewIosReviewRetriever(conf)
+	default:
+		log.Fatal("unsupported platform: " + conf.PlatformName)
+	}
+
+	reviews := retriever.Retrieve()
+
+	newReviews := FilterAndSaveReviews(reviews)
+	if len(newReviews) == 0 {
 		//no new content
 		return
 	}
 
-	attachments := GenerateAttachments(unseenReviews)
-	payload := PreparePayload(attachments)
+	attachments := slack.GenerateAttachments(newReviews)
+	payload := slack.PreparePayload(attachments)
 	HttpPostJson(conf.WebHookUri, payload)
 }
 
-func SaveUnseen(entries []feed.Entry) []*model.Review {
-	reviews := []*model.Review{}
+func FilterAndSaveReviews(candidates []*model.Review) []*model.Review {
+	newReviews := []*model.Review{}
 
-	lastSeenReviewId := model.LastSeenReviewId()
+	if len(candidates) == 0 {
+		return newReviews
+	}
 
-	for i, entry := range entries {
-		// first entry is the summary of the app so skip it
-		if i == 0 {
-			continue
-		}
+	lastSeenId := model.LastSeenReviewId(candidates[0].DeviceType)
 
-		entryId, _ := strconv.Atoi(entry.Id)
-		if entryId <= lastSeenReviewId {
+	for _, candidate := range candidates {
+		if candidate.ID <= lastSeenId {
 			break
 		}
 
-		review := model.NewReview(&entry)
-		err := review.Save()
+		err := candidate.Save()
 		if err != nil {
 			log.Fatal(err)
 		}
-		reviews = append(reviews, review)
+		newReviews = append(newReviews, candidate)
 	}
 
-	return reviews
-}
-
-func GenerateAttachments(reviews []*model.Review) []SlackAttachment {
-	attachments := []SlackAttachment{}
-
-	for i, review := range reviews {
-		if i > conf.MaxAttachmentCount {
-			break
-		}
-
-		fields := []SlackAttachmentField{}
-		fields = append(fields, SlackAttachmentField{Title: "Rating", Value: strings.Repeat(":star:", review.Rating), Short: true})
-		fields = append(fields, SlackAttachmentField{Title: "Updated", Value: review.Updated.Format("2006-01-02 15:04:05"), Short: true})
-
-		attachments = append(attachments, SlackAttachment{
-			Title:     review.Title,
-			TitleLink: review.AuthorUri,
-			Text:      review.Content,
-			Fallback:  review.Title + " " + review.AuthorUri,
-			Fields:    fields,
-		})
-	}
-
-	return attachments
-}
-
-func PreparePayload(attachments []SlackAttachment) []byte {
-	slackPayload := SlackPayload{
-		UserName:    conf.BotName,
-		IconEmoji:   conf.IconEmoji,
-		Text:        conf.MessageText,
-		Attachments: attachments,
-	}
-	payload, _ := json.Marshal(slackPayload)
-
-	return payload
-}
-
-func HttpGet(uri string) []byte {
-	res, err := http.Get(uri)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer res.Body.Close()
-
-	body, _ := ioutil.ReadAll(res.Body)
-	return body
+	return newReviews
 }
 
 func HttpPostJson(url string, jsonPayload []byte) {
